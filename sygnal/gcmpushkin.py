@@ -366,11 +366,13 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 "Authorization": ["key=%s" % (self.api_key,)],
             }
 
+            title = n.sender_display_name if n.sender_display_name else ""
+
             body = self.base_request_body.copy()
             body['notification'] = {
                 "sound" : "default",
-                "body" :  "",
-                "title" : "New text message",
+                "body" :  "New text message", # n.content.get('body', ""),
+                "title" : title,
                 "content_available" : True,
                 "priority" : "high"
             }

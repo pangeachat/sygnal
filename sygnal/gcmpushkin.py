@@ -600,17 +600,17 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 # Add notification content to the request body
                 # Data-only messages don't go through consistently on iOS
                 # https://github.com/matrix-org/sygnal/issues/366
-                title = n.room_name
+                title = body["room_name"]
                 if not title or title == "":
-                    title = n.sender_display_name
+                    title = body["sender_display_name"]
                 if not title:
-                    title = n.sender
+                    title = body["sender"]
                 if not title:
                     title = "New message"
 
                 message = "New Message"
                 if n.content and isinstance(n.content, dict):
-                    message = n.content.get("body", "New Message")
+                    message = body.get("content_body", "New Message")
 
                 body["message"]["notification"] = {"title": title, "body": message}
 

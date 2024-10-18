@@ -309,6 +309,10 @@ class GcmTestCase(testutils.TestCase):
                         },
                     },
                     "token": "spqr",
+                    "notification": {
+                        "title": "Mission Control",
+                        "body": "I'm floating in a most peculiar way."
+                    }
                 }
             },
             notification_req[2],
@@ -525,6 +529,10 @@ class GcmTestCase(testutils.TestCase):
                         },
                     },
                     "token": "spqr",
+                    "notification": {
+                        "title": "Mission Control",
+                        "body": "I'm floating in a most peculiar way."
+                    }
                 }
             },
             notification_req[2],
@@ -638,6 +646,24 @@ ooooooooooxxxxxxxxxx🦉oooooo£xxxxxxxx☻oo🦉…",
                         },
                     },
                     "token": "spqr",
+                    "notification": {
+                        "title": "xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooox…",
+                        "body": "I'm floating in a most peculiar way."
+                    }
                 }
             },
             notification_req[2],

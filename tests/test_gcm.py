@@ -311,8 +311,8 @@ class GcmTestCase(testutils.TestCase):
                     "token": "spqr",
                     "notification": {
                         "title": "Mission Control",
-                        "body": "I'm floating in a most peculiar way."
-                    }
+                        "body": "I'm floating in a most peculiar way.",
+                    },
                 }
             },
             notification_req[2],
@@ -531,8 +531,8 @@ class GcmTestCase(testutils.TestCase):
                     "token": "spqr",
                     "notification": {
                         "title": "Mission Control",
-                        "body": "I'm floating in a most peculiar way."
-                    }
+                        "body": "I'm floating in a most peculiar way.",
+                    },
                 }
             },
             notification_req[2],
@@ -662,9 +662,9 @@ xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
 xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
 ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooox…",
-                        "body": "I'm floating in a most peculiar way."
-                    }
-                }
+                        "body": "I'm floating in a most peculiar way.",
+                    },
+                },
             },
             notification_req[2],
         )

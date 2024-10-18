@@ -367,14 +367,6 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             }
 
             body = self.base_request_body.copy()
-            body['notification'] = {
-                "sound" : "default",
-                "body" :  "",
-                "title" : "New text message",
-                "content_available" : True,
-                "priority" : "high"
-            }
-
             body["data"] = data
             body["priority"] = "normal" if n.prio == "low" else "high"
 

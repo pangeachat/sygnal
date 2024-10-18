@@ -608,13 +608,11 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 if not title:
                     title = "New message"
 
+                message = "New Message"
+                if n.content and isinstance(n.content, dict):
+                    message = n.content.get("body", "New Message")
 
-                message = n.content.get("body", "New Message")
-                body["message"]["notification"] = {
-                    "title": title,
-                    "body": message
-                }
-
+                body["message"]["notification"] = {"title": title, "body": message}
 
             for retry_number in range(0, MAX_TRIES):
                 # This has to happen inside the retry loop since `pushkeys` can be modified in the

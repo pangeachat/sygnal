@@ -597,6 +597,25 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 body = {}
                 body["message"] = new_body
 
+                # Add notification content to the request body
+                # Data-only messages don't go through consistently on iOS
+                # https://github.com/matrix-org/sygnal/issues/366
+                title = n.room_name
+                if not title or title == "":
+                    title = n.sender_display_name
+                if not title:
+                    title = n.sender
+                if not title:
+                    title = "New message"
+
+
+                message = n.content.get("body", "New Message")
+                body["message"]["notification"] = {
+                    "title": title,
+                    "body": message
+                }
+
+
             for retry_number in range(0, MAX_TRIES):
                 # This has to happen inside the retry loop since `pushkeys` can be modified in the
                 # event of a failure that warrants a retry.

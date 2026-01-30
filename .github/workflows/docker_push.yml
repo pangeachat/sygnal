@@ -103,6 +103,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ matrix.repository }}
+          flavor: |
+            latest=false
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable=${{ steps.latest.outputs.tag_latest == 'true' }}

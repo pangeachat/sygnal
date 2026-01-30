@@ -28,8 +28,8 @@ jobs:
     strategy:
       matrix:
         repository:
-          - docker.io/matrixdotorg/synapse
-          - oci-push.vpn.infra.element.io/synapse
+          - docker.io/matrixdotorg/sygnal
+          - oci-push.vpn.infra.element.io/sygnal
 
     steps:
       - name: Set up QEMU

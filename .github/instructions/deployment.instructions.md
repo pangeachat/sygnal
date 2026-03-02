@@ -8,53 +8,80 @@ How the Sygnal push gateway is built and deployed. For org-wide deployment patte
 
 ## Architecture
 
-Sygnal runs as a **Docker container on the production Synapse EC2 instance** (`matrix.pangea.chat` / `52.203.29.202`), managed by the same [Ansible playbook](../../ansible/) that deploys Synapse. It is **not** deployed via ECS/Fargate like the choreographer and CMS.
+Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by the [Ansible playbook](../../ansible/). It is **not** deployed via ECS/Fargate like the choreographer and CMS.
+
+### Staging
+
+| Component | Detail |
+|-----------|--------|
+| **Docker image** | `061565848348.dkr.ecr.us-east-1.amazonaws.com/pangea-staging-sygnal:main` |
+| **CI/CD** | `.github/workflows/deploy-staging.yml` — push to `main` → ECR build → SSM deploy |
+| **IAM (push)** | `github-deploy-staging` OIDC role — ECR push + SSM RunCommand |
+| **IAM (pull)** | `CloudWatchAgentServerRole` — `ecr-pull` inline policy (Terraform: `staging/iam/ec2-ecr-pull`) |
+| **Ansible vars** | [`ansible/inventory/staging/host_vars/matrix.staging.pangea.chat/vars.yml`](../../ansible/inventory/staging/host_vars/matrix.staging.pangea.chat/vars.yml) |
+| **EC2 instance** | `i-028b5c19a329c8961` (`100.55.34.39`) |
+| **Reverse proxy** | Traefik v3 — routes `sygnal.staging.pangea.chat` → container port 6000, Let's Encrypt TLS |
+| **DNS** | CNAME `sygnal.staging.pangea.chat` → `matrix.staging.pangea.chat` (Terraform: `staging/dns/sygnal`) |
+| **ECR repo** | Terraform: `staging/ecr/sygnal` |
+| **Systemd service** | `matrix-sygnal` |
+
+### Production
 
 | Component | Detail |
 |-----------|--------|
 | **Docker image** | `localhost/pangeachat/sygnal:main` — built directly on the EC2 instance |
-| **Ansible role** | `roles/custom/matrix-sygnal` in the ansible repo |
-| **Config** | [`ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml`](../../ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml) |
-| **Reverse proxy** | Traefik (managed by the Ansible playbook) — routes `sygnal.pangea.chat` → container port 6000 |
-| **DNS** | CNAME `sygnal.pangea.chat` → `matrix.pangea.chat` (Route 53, created manually — not in Terraform) |
-| **Systemd service** | `matrix-sygnal` (template: `matrix-sygnal.service.j2`) |
-| **Staging** | **Not deployed.** No sygnal config in staging inventory. |
+| **CI/CD** | **None.** Manual SSH + docker build + systemd restart. |
+| **Ansible vars** | [`ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml`](../../ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml) |
+| **Reverse proxy** | Traefik — routes `sygnal.pangea.chat` → container port 6000 |
+| **DNS** | CNAME `sygnal.pangea.chat` → `matrix.pangea.chat` (Route 53, not yet in Terraform) |
+| **Systemd service** | `matrix-sygnal` |
 
-## Deploying a Code Change
+## Staging Deploys (CI/CD)
 
-There is no CI/CD pipeline for Sygnal deploys — it's a manual process on the production EC2 instance.
+Every push to `main` triggers the deploy workflow:
 
-### Steps
+1. **Build & push** — Docker Buildx builds `linux/amd64` image, pushes to ECR with `:main` and `:${SHA}` tags
+2. **Deploy** — OIDC auth → SSM RunCommand on staging EC2:
+   - `aws ecr get-login-password | docker login` (ECR auth on-instance)
+   - `docker pull` the new image
+   - `systemctl restart matrix-sygnal`
+   - Health check via `systemctl is-active`
 
-1. **SSH into production**: `ssh ubuntu@52.203.29.202` (or `ssh ubuntu@matrix.pangea.chat`)
-2. **Navigate to the sygnal clone** (wherever it was previously cloned on the instance)
-3. **Pull the latest code**: `git pull origin main`
-4. **Rebuild the Docker image**:
-   ```bash
-   docker build -f docker/Dockerfile -t localhost/pangeachat/sygnal:main .
-   ```
-5. **Restart the service**: `sudo systemctl restart matrix-sygnal`
-6. **Verify**: `sudo journalctl -fu matrix-sygnal` and test a push notification from the app
+### Bootstrap (First-Time Setup)
 
-### Config-Only Changes (Ansible Vars)
-
-If only the Ansible config changes (e.g., adding an FCM app, updating `matrix_sygnal_apps`), re-run the playbook instead:
+Before CI/CD can deploy, Ansible must bootstrap the Sygnal container and Traefik route:
 
 ```bash
-ansible-playbook -i inventory/production/hosts setup.yml --tags=setup-sygnal,start
+# Push an initial image to ECR first (or run the workflow once to populate it)
+ansible-playbook -i inventory/staging/hosts setup.yml --tags=setup-sygnal,start
 ```
 
-This regenerates the Sygnal YAML config from the Jinja template and restarts the container.
+## Production Deploys (Manual)
 
-## Key Ansible Config
+1. **SSH into production**: `ssh ubuntu@52.203.29.202`
+2. **Pull latest code**: `cd /path/to/sygnal && git pull origin main`
+3. **Rebuild**: `docker build -f docker/Dockerfile -t localhost/pangeachat/sygnal:main .`
+4. **Restart**: `sudo systemctl restart matrix-sygnal`
+5. **Verify**: `sudo journalctl -fu matrix-sygnal`
 
-Defined in the production vars file:
+### Config-Only Changes
 
-- `matrix_sygnal_enabled: true`
-- `matrix_sygnal_docker_image: "localhost/pangeachat/sygnal:main"` — overrides the default `matrixdotorg/sygnal` image
-- `matrix_sygnal_docker_image_force_pull: false` — critical, since the image is local (not from a registry)
-- `matrix_sygnal_apps` — defines two FCM v1 apps: `com.talktolearn.chat` and `com.talktolearn.chat.data_message`
-- Firebase service account JSON is deployed via `aux_file_definitions` into the Sygnal data path
+If only Ansible config changes (e.g., FCM apps), re-run the playbook:
+
+```bash
+ansible-playbook -i inventory/<env>/hosts setup.yml --tags=setup-sygnal,start
+```
+
+## Infrastructure (Terraform)
+
+All staging infrastructure is managed in `devops/terraform/staging/`:
+
+| Resource | Terragrunt path |
+|----------|----------------|
+| ECR repository | `ecr/sygnal/` |
+| DNS CNAME | `dns/sygnal/` |
+| OIDC role (ECR push + SSM) | `iam/github-oidc/` |
+| EC2 ECR pull policy | `iam/ec2-ecr-pull/` |
 
 ## Client Integration
 
@@ -64,17 +91,9 @@ The client sets the push gateway URL in [`client/lib/config/setting_keys.dart`](
 pushNotificationsGatewayUrl: 'https://sygnal.pangea.chat/_matrix/push/v1/notify'
 ```
 
-The client registers a pusher with Synapse via `POST /_matrix/client/v3/pushers/set`, passing this URL. Synapse then sends push payloads to Sygnal, which forwards them to FCM/APNs. This is the standard Matrix push flow — Sygnal is **not** configured in Synapse's server config.
-
-## What's Non-Standard
-
-1. **Image built on-instance** — Most Ansible-managed services pull pre-built images from a registry. We build `localhost/pangeachat/sygnal:main` directly on the EC2 instance because the Ansible role doesn't support `self_build` and we need our fork's changes.
-2. **No staging deployment** — Push notifications only work in production. Adding staging parity is tracked as open work.
-3. **No CI/CD deploy pipeline** — Deploys are fully manual SSH + docker build + systemd restart.
-4. **DNS not in Terraform** — The `sygnal.pangea.chat` CNAME was created manually in Route 53.
+The client registers a pusher with Synapse via `POST /_matrix/client/v3/pushers/set`. Synapse forwards push payloads to Sygnal → FCM/APNs.
 
 ## Future Work
 
-- Deploy to staging for parity
-- Set up a CI/CD pipeline (GitHub Actions → ECR or on-instance build trigger)
-- Move DNS into Terraform
+- Add CI/CD for production (mirror the staging pattern with a `pangea-prod-sygnal` ECR repo)
+- Move production DNS CNAME into Terraform

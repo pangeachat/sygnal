@@ -94,9 +94,9 @@ FROM docker.io/library/python:${PYTHON_VERSION}-slim-${DEBIAN_VERSION}
 
 COPY --from=builder /install /usr/local
 
-EXPOSE 5000/tcp
+EXPOSE 6000/tcp
 
 ENTRYPOINT ["python", "-m", "sygnal.sygnal"]
 
 HEALTHCHECK --start-period=25s --interval=15s --timeout=5s \
-  CMD curl --fail --silent --show-error http://localhost:5000/health || exit 1
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:6000/health')" || exit 1

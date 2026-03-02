@@ -1,6 +1,6 @@
 # Upstream PR Progress — SUBMITTED
 
-PRs opened 2026-03-02 via `pangeachat/sygnal-upstream` fork of `element-hq/sygnal`.
+PRs opened 2026-03-02 from `pangeachat/sygnal` (fork of `element-hq/sygnal`).
 
 ## PR A: Async `create()` factory fix
 
@@ -18,7 +18,7 @@ PRs opened 2026-03-02 via `pangeachat/sygnal-upstream` fork of `element-hq/sygna
 - **Change**: Adds opt-in `include_notification_content` config option. When enabled, injects `notification.title` (room_name > sender_display_name > sender > "New Message") and `notification.body` (content.body or "New Message") into FCM v1 requests.
 - **Changelog**: `changelog.d/gcm-notification-content.feature`
 
-## Repo setup
+## Repo history
 
-- **pangeachat/sygnal** — original fork (parent: matrix-org/sygnal, archived). Contains our production deployment branch (`notification-request-updates`, merged PR #1). Docker image built on EC2 from this repo.
-- **pangeachat/sygnal-upstream** — new fork (parent: element-hq/sygnal). Used exclusively for opening upstream PRs. Feature branches pushed here.
+- **pangeachat/sygnal** — current canonical fork (parent: element-hq/sygnal). All branches, upstream PRs, and deployment live here.
+- **pangeachat/sygnal-legacy** — archived 2026-03-02. Was the original fork (parent: matrix-org/sygnal, which is archived). Kept for Git history only.

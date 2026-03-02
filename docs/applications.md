@@ -279,7 +279,8 @@ serviceWorkerRegistration.pushManager.subscribe({
 
 You also need to set an e-mail address in `vapid_contact_email` in the config file,
 where the push gateway operator can reach you in case they need to notify you
-about your usage of their API.
+about your usage of their API. Note that only an email address is supported at this time,
+as Sygnal will prepend `mailto:` to the email address provided in the config.
 
 Since for webpush, the push gateway endpoint is variable and comes from the browser
 through the push data, you may not want to have your sygnal instance connect to any

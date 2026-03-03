@@ -317,6 +317,10 @@ class GcmTestCase(testutils.TestCase):
                         "unread": "2",
                         "missed_calls": "1",
                     },
+                    "notification": {
+                        "body": "I'm floating in a most peculiar way.",
+                        "title": "Mission Control",
+                    },
                     "android": {
                         "notification": {
                             "body": {
@@ -531,6 +535,10 @@ class GcmTestCase(testutils.TestCase):
                         "prio": "high",
                         "unread": "2",
                         "missed_calls": "1",
+                    },
+                    "notification": {
+                        "body": "I'm floating in a most peculiar way.",
+                        "title": "Mission Control",
                     },
                     "android": {
                         "notification": {
@@ -850,6 +858,24 @@ ooooooooooxxxxxxxxxx🦉oooooo£xxxxxxxx☻oo🦉…",
                         "prio": "high",
                         "unread": "2",
                         "missed_calls": "1",
+                    },
+                    "notification": {
+                        "body": "I'm floating in a most peculiar way.",
+                        "title": "xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooo\
+xxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxooooooooooxxxxxxxxxx\
+ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooox…",
                     },
                     "android": {
                         "notification": {

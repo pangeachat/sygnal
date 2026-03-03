@@ -579,6 +579,13 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 body = {}
                 body["message"] = new_body
 
+                # Add notification content to the request body
+                # Data-only messages don't go through consistently on iOS
+                # https://github.com/matrix-org/sygnal/issues/366
+                notification_message = GcmPushkin._build_notification_message(n)
+                if notification_message is not None:
+                    body["message"]["notification"] = notification_message
+
             for retry_number in range(0, MAX_TRIES):
                 # This has to happen inside the retry loop since `pushkeys` can be modified in the
                 # event of a failure that warrants a retry.
@@ -652,6 +659,75 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             # Count the number of failed devices.
             span_parent.set_tag("gcm_num_failed", len(failed))
             return failed
+
+    @staticmethod
+    def _build_notification_message(n: Notification) -> Optional[Dict[str, Any]]:
+        """
+        Build the notification message payload.
+        Args:
+            n: Notification to build the payload for.
+
+        Returns:
+            JSON-compatible dict if notification content is availabe. None if not.
+        """
+        content = None
+        if hasattr(n, "content"):
+            content = getattr(n, "content")
+        else:
+            return None
+
+        if content is None:
+            return None
+
+        sender_display_name = None
+        sender_user_id = None
+
+        if hasattr(n, "sender_display_name"):
+            sender_display_name = n.sender_display_name
+
+        if hasattr(n, "sender_user_id"):
+            sender_user_id = n.sender
+
+        sender = sender_display_name
+        if not sender or sender == "":
+            sender = sender_user_id
+
+        title = None
+        if hasattr(n, "room_name"):
+            title = n.room_name
+
+        if not title or title == "":
+            title = sender
+        if not title or title == "":
+            title = "New Message"
+
+        notification_body = content.get("body", None)
+
+        if hasattr(n, "type") and n.type == "m.room.member":
+            membership = content.get("membership", None)
+            reason = content.get("reason", None)
+
+            if membership == "invite":
+                if sender and sender != "":
+                    notification_body = f"📩 You have been invited by {sender}"
+                else:
+                    notification_body = "📩 You have been invited"
+
+                if reason == "invite_on_knock":
+                    notification_body = (
+                        "Your join request was accepted! You can now enter the course."
+                    )
+
+        if not notification_body or notification_body == "":
+            notification_body = "New Message"
+
+        title, _ = truncate_str(title, MAX_BYTES_PER_FIELD)
+        notification_body, _ = truncate_str(notification_body, MAX_BYTES_PER_FIELD)
+
+        return {
+            "title": title,
+            "body": notification_body,
+        }
 
     @staticmethod
     def _build_data(

@@ -9,7 +9,9 @@ jobs:
     permissions:
       issues: write
     steps:
-      - run: gh issue edit "$NUMBER" --add-label "needs testing"
+      - run: |
+          gh issue edit "$NUMBER" --add-label "needs iOS testing"
+          gh issue edit "$NUMBER" --add-label "needs android testing"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}

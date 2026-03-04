@@ -29,11 +29,15 @@ Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by t
 
 | Component | Detail |
 |-----------|--------|
-| **Docker image** | `localhost/pangeachat/sygnal:main` — built directly on the EC2 instance |
-| **CI/CD** | **None.** Manual SSH + docker build + systemd restart. |
+| **Docker image** | `061565848348.dkr.ecr.us-east-1.amazonaws.com/pangea-prod-sygnal:production` |
+| **CI/CD** | `.github/workflows/deploy-production.yml` — push to `production` branch → ECR build → SSM deploy |
+| **IAM (push)** | `github-deploy-prod` OIDC role — ECR push + SSM RunCommand |
+| **IAM (pull)** | `CloudWatchAgentServerRole` — `ecr-pull-prod` inline policy (Terraform: `prod/iam/ec2-ecr-pull`) |
 | **Ansible vars** | [`ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml`](../../ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml) |
+| **EC2 instance** | `i-074c64998e68a5bc6` (`52.203.29.202`) |
 | **Reverse proxy** | Traefik — routes `sygnal.pangea.chat` → container port 6000 |
 | **DNS** | CNAME `sygnal.pangea.chat` → `matrix.pangea.chat` (Route 53, not yet in Terraform) |
+| **ECR repo** | Terraform: `prod/ecr/sygnal` |
 | **Systemd service** | `matrix-sygnal` |
 
 ## Staging Deploys (CI/CD)
@@ -42,27 +46,30 @@ Every push to `main` triggers the deploy workflow:
 
 1. **Build & push** — Docker Buildx builds `linux/amd64` image, pushes to ECR with `:main` and `:${SHA}` tags
 2. **Deploy** — OIDC auth → SSM RunCommand on staging EC2:
-   - `aws ecr get-login-password | docker login` (ECR auth on-instance)
-   - `docker pull` the new image
+   - `docker pull` the new image (ECR auth via `amazon-ecr-credential-helper`)
    - `systemctl restart matrix-sygnal`
    - Health check via `systemctl is-active`
 
+## Production Deploys (CI/CD)
+
+Every push to `production` triggers the deploy workflow:
+
+1. **Build & push** — Docker Buildx builds `linux/amd64` image, pushes to ECR with `:production` and `:${SHA}` tags
+2. **Deploy** — OIDC auth → SSM RunCommand on production EC2:
+   - `docker pull` the new image (ECR auth via `amazon-ecr-credential-helper`)
+   - `systemctl restart matrix-sygnal`
+   - Health check via `systemctl is-active`
+
+To deploy: merge `main` → `production` (or push directly to `production`).
+
 ### Bootstrap (First-Time Setup)
 
-Before CI/CD can deploy, Ansible must bootstrap the Sygnal container and Traefik route:
+Before CI/CD can deploy, Ansible must bootstrap the Sygnal container, ECR credential helper, and Traefik route:
 
 ```bash
 # Push an initial image to ECR first (or run the workflow once to populate it)
-ansible-playbook -i inventory/staging/hosts setup.yml --tags=setup-sygnal,start
+ansible-playbook -i inventory/<env>/hosts setup.yml --tags=setup-sygnal,start
 ```
-
-## Production Deploys (Manual)
-
-1. **SSH into production**: `ssh ubuntu@52.203.29.202`
-2. **Pull latest code**: `cd /path/to/sygnal && git pull origin main`
-3. **Rebuild**: `docker build -f docker/Dockerfile -t localhost/pangeachat/sygnal:main .`
-4. **Restart**: `sudo systemctl restart matrix-sygnal`
-5. **Verify**: `sudo journalctl -fu matrix-sygnal`
 
 ### Config-Only Changes
 
@@ -74,14 +81,16 @@ ansible-playbook -i inventory/<env>/hosts setup.yml --tags=setup-sygnal,start
 
 ## Infrastructure (Terraform)
 
-All staging infrastructure is managed in `devops/terraform/staging/`:
+Managed in `devops/terraform/{staging,prod}/`:
 
-| Resource | Terragrunt path |
-|----------|----------------|
-| ECR repository | `ecr/sygnal/` |
-| DNS CNAME | `dns/sygnal/` |
-| OIDC role (ECR push + SSM) | `iam/github-oidc/` |
-| EC2 ECR pull policy | `iam/ec2-ecr-pull/` |
+| Resource | Staging | Production |
+|----------|---------|------------|
+| ECR repository | `staging/ecr/sygnal/` | `prod/ecr/sygnal/` |
+| DNS CNAME | `staging/dns/sygnal/` | Not yet in Terraform |
+| OIDC role (ECR push + SSM) | `staging/iam/github-oidc/` | `prod/iam/github-oidc/` |
+| EC2 ECR pull policy | `staging/iam/ec2-ecr-pull/` | `prod/iam/ec2-ecr-pull/` |
+
+**Note:** Both envs share a single `CloudWatchAgentServerRole` IAM role (created outside Terraform). The ECR pull policies are named `ecr-pull` (staging) and `ecr-pull-prod` (production) to avoid collision. The OIDC provider is created by staging; production references it via data source (`create_oidc_provider = false`).
 
 ## Client Integration
 
@@ -95,5 +104,4 @@ The client registers a pusher with Synapse via `POST /_matrix/client/v3/pushers/
 
 ## Future Work
 
-- Add CI/CD for production (mirror the staging pattern with a `pangea-prod-sygnal` ECR repo)
 - Move production DNS CNAME into Terraform

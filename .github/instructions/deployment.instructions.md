@@ -64,11 +64,13 @@ To deploy: merge `main` → `production` (or push directly to `production`).
 
 ### Bootstrap (First-Time Setup)
 
-Before CI/CD can deploy, Ansible must bootstrap the Sygnal container, ECR credential helper, and Traefik route:
+Before CI/CD can deploy, Ansible must bootstrap the Sygnal container, ECR credential helper, and Traefik route.
+
+**Important:** Firebase credentials are deployed by the `auxiliary` role (`install-aux` tag), not the `sygnal` role. The Firebase Admin SDK JSON file (`pangea-chat-936ee-firebase-adminsdk-*.json`) must be present in Sygnal's data directory before the container starts. Include `install-aux` in the bootstrap:
 
 ```bash
-# Push an initial image to ECR first (or run the workflow once to populate it)
-ansible-playbook -i inventory/<env>/hosts setup.yml --tags=setup-sygnal,start
+# Push an initial image to ECR first (crane copy or run the workflow once)
+ansible-playbook -i inventory/<env>/hosts setup.yml --tags=install-aux,setup-sygnal,start
 ```
 
 ### Config-Only Changes

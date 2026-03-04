@@ -36,7 +36,7 @@ Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by t
 | **Ansible vars** | [`ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml`](../../ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml) |
 | **EC2 instance** | `i-074c64998e68a5bc6` (`52.203.29.202`) |
 | **Reverse proxy** | Traefik — routes `sygnal.pangea.chat` → container port 6000 |
-| **DNS** | CNAME `sygnal.pangea.chat` → `matrix.pangea.chat` (Route 53, not yet in Terraform) |
+| **DNS** | CNAME `sygnal.pangea.chat` → `matrix.pangea.chat` (Terraform: `prod/dns/sygnal`) |
 | **ECR repo** | Terraform: `prod/ecr/sygnal` |
 | **Systemd service** | `matrix-sygnal` |
 
@@ -88,7 +88,7 @@ Managed in `devops/terraform/{staging,prod}/`:
 | Resource | Staging | Production |
 |----------|---------|------------|
 | ECR repository | `staging/ecr/sygnal/` | `prod/ecr/sygnal/` |
-| DNS CNAME | `staging/dns/sygnal/` | Not yet in Terraform |
+| DNS CNAME | `staging/dns/sygnal/` | `prod/dns/sygnal/` |
 | OIDC role (ECR push + SSM) | `staging/iam/github-oidc/` | `prod/iam/github-oidc/` |
 | EC2 ECR pull policy | `staging/iam/ec2-ecr-pull/` | `prod/iam/ec2-ecr-pull/` |
 
@@ -106,4 +106,4 @@ The client registers a pusher with Synapse via `POST /_matrix/client/v3/pushers/
 
 ## Future Work
 
-- Move production DNS CNAME into Terraform
+None at this time. All infrastructure is managed by Terraform.

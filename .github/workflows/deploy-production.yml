@@ -1,8 +1,8 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [production]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -117,3 +117,14 @@ jobs:
           done
           echo "Timed out waiting for SSM command."
           exit 1
+
+  notify:
+    needs: deploy
+    if: ${{ github.event_name == 'release' }}
+    uses: pangeachat/.github/.github/workflows/notify-matrix-deploy.yaml@main
+    with:
+      service_name: "Sygnal"
+      version: ${{ github.event.release.tag_name }}
+      release_body: ${{ github.event.release.body }}
+    secrets:
+      matrix_password: ${{ secrets.SYSTEM_STATUS_BOT_MATRIX_PASS }}

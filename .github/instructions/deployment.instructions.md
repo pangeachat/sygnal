@@ -59,7 +59,7 @@ Publishing a GitHub release triggers the deploy workflow:
    - `docker pull` the new image (ECR auth via `amazon-ecr-credential-helper`)
    - `systemctl restart matrix-sygnal`
    - Health check via `systemctl is-active`
-3. **Notify** — Posts release summary to the team Matrix room (via reusable workflow)
+3. **Notify** — Posts release summary to the team Matrix room (inlined steps — cannot use reusable workflow from private `.github` repo since sygnal is public)
 
 To deploy: create a GitHub release using the [release template](../../.github/RELEASE_TEMPLATE.md). `workflow_dispatch` is also available for manual re-deploys.
 

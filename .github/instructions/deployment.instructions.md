@@ -30,7 +30,7 @@ Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by t
 | Component | Detail |
 |-----------|--------|
 | **Docker image** | `061565848348.dkr.ecr.us-east-1.amazonaws.com/pangea-prod-sygnal:production` |
-| **CI/CD** | `.github/workflows/deploy-production.yml` — push to `production` branch → ECR build → SSM deploy |
+| **CI/CD** | `.github/workflows/deploy-production.yml` — GitHub release published → ECR build → SSM deploy → Matrix notification |
 | **IAM (push)** | `github-deploy-prod` OIDC role — ECR push + SSM RunCommand |
 | **IAM (pull)** | `CloudWatchAgentServerRole` — `ecr-pull-prod` inline policy (Terraform: `prod/iam/ec2-ecr-pull`) |
 | **Ansible vars** | [`ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml`](../../ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml) |
@@ -52,15 +52,16 @@ Every push to `main` triggers the deploy workflow:
 
 ## Production Deploys (CI/CD)
 
-Every push to `production` triggers the deploy workflow:
+Publishing a GitHub release triggers the deploy workflow:
 
 1. **Build & push** — Docker Buildx builds `linux/amd64` image, pushes to ECR with `:production` and `:${SHA}` tags
 2. **Deploy** — OIDC auth → SSM RunCommand on production EC2:
    - `docker pull` the new image (ECR auth via `amazon-ecr-credential-helper`)
    - `systemctl restart matrix-sygnal`
    - Health check via `systemctl is-active`
+3. **Notify** — Posts release summary to the team Matrix room (via reusable workflow)
 
-To deploy: merge `main` → `production` (or push directly to `production`).
+To deploy: create a GitHub release using the [release template](../../.github/RELEASE_TEMPLATE.md). `workflow_dispatch` is also available for manual re-deploys.
 
 ### Bootstrap (First-Time Setup)
 

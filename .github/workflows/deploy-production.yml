@@ -150,8 +150,8 @@ jobs:
               h = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', h)
               def replace_ol(m):
                   items = re.findall(r'^\d+\.\s+(.+)$', m.group(0), re.MULTILINE)
-                  li = "".join(f'<li class="org.matrix.taskitem"><input type="checkbox" disabled /> {i}</li>' for i in items)
-                  return f'<ul class="org.matrix.tasklist">{li}</ul>'
+                  li = "".join(f'<li class="task-list-item"><input type="checkbox"></input>{i}</li>' for i in items)
+                  return f'<ul class="contains-task-list">{li}</ul>'
               h = re.sub(r'(?:^\d+\.\s+.+$\n?)+', replace_ol, h, flags=re.MULTILINE)
               def replace_ul(m):
                   items = re.findall(r'^[-*]\s+(.+)$', m.group(0), re.MULTILINE)

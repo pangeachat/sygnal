@@ -219,7 +219,7 @@ jobs:
           "
           TXN_ID="deploy-$(date +%s%N)"
           HTTP_CODE=$(curl -s -o /tmp/matrix_response.txt -w "%{http_code}" \
-            -X PUT "https://matrix-client.matrix.org/_matrix/client/v3/rooms/!xTFdZkhXDDCInLhgqs:matrix.org/send/m.room.message/$TXN_ID" \
+            -X PUT "https://matrix-client.matrix.org/_matrix/client/v3/rooms/!puIqvGlZFhnkcBNgmd:matrix.org/send/m.room.message/$TXN_ID" \
             -H "Authorization: Bearer ${{ steps.login.outputs.token }}" \
             -H "Content-Type: application/json" \
             -d @/tmp/matrix_payload.json)

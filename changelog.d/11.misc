@@ -1,0 +1,1 @@
+Pin all GitHub Actions to full SHA hashes; add explicit permissions blocks to all workflows.

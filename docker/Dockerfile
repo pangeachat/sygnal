@@ -94,6 +94,12 @@ FROM docker.io/library/python:${PYTHON_VERSION}-slim-${DEBIAN_VERSION}
 
 COPY --from=builder /install /usr/local
 
+# Create non-root user
+RUN groupadd --system --gid 1001 sygnal \
+  && useradd --system --uid 1001 --gid 1001 sygnal
+
+USER sygnal
+
 EXPOSE 6000/tcp
 
 ENTRYPOINT ["python", "-m", "sygnal.sygnal"]

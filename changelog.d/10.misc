@@ -1,0 +1,1 @@
+Run container as non-root user (uid/gid 1001) in the Docker runtime stage.

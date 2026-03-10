@@ -22,7 +22,7 @@ log:
       file:
         class: "logging.handlers.WatchedFileHandler"
         formatter: "normal"
-        filename: "./sygnal.log"
+        filename: "/tmp/sygnal.log"
     loggers:
       sygnal.access:
         propagate: false

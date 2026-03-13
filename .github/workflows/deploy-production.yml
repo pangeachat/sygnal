@@ -184,15 +184,32 @@ jobs:
               f.write(h)
           PYEOF
 
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ env.IAM_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Login to Matrix
         id: login
-        env:
-          MATRIX_PASSWORD: ${{ secrets.SYSTEM_STATUS_BOT_MATRIX_PASS }}
         shell: bash
         run: |
-          RESPONSE=$(curl -s -X POST "https://matrix-client.matrix.org/_matrix/client/v3/login" \
+          RESPONSE=$(python3 -c "
+          import json, subprocess
+          creds = json.loads(subprocess.check_output([
+              'aws', 'secretsmanager', 'get-secret-value',
+              '--secret-id', '/deployment-alerts/matrix-credentials',
+              '--query', 'SecretString', '--output', 'text'
+          ]))
+          payload = json.dumps({
+              'type': 'm.login.password',
+              'identifier': {'type': 'm.id.user', 'user': creds['username']},
+              'password': creds['password']
+          })
+          print(payload)
+          " | curl -s -X POST "https://matrix-client.matrix.org/_matrix/client/v3/login" \
             -H "Content-Type: application/json" \
-            -d "$(python3 -c "import json,os; print(json.dumps({'type':'m.login.password','identifier':{'type':'m.id.user','user':'pangea-chat-system-status'},'password':os.environ['MATRIX_PASSWORD']}))")")
+            -d @-)
           TOKEN=$(echo "$RESPONSE" | jq -r '.access_token // empty')
           if [ -z "$TOKEN" ]; then
             echo "::error::Matrix login failed: $RESPONSE"

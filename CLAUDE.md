@@ -1,1 +1,1 @@
-.github/copilot-instructions.md
+@.github/instructions/deployment.instructions.md

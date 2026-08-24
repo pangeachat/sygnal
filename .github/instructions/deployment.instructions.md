@@ -19,7 +19,7 @@ Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by t
 | **IAM (push)** | `github-deploy-staging` OIDC role — ECR push + SSM RunCommand |
 | **IAM (pull)** | `CloudWatchAgentServerRole` — `ecr-pull` inline policy (Terraform: `staging/iam/ec2-ecr-pull`) |
 | **Ansible vars** | [`ansible/inventory/staging/host_vars/matrix.staging.pangea.chat/vars.yml`](../../../ansible/inventory/staging/host_vars/matrix.staging.pangea.chat/vars.yml) |
-| **EC2 instance** | `i-028b5c19a329c8961` (`100.55.34.39`) |
+| **EC2 instance** | `i-028b5c19a329c8961` (`54.144.22.101`) |
 | **Reverse proxy** | Traefik v3 — routes `sygnal.staging.pangea.chat` → container port 6000, Let's Encrypt TLS |
 | **DNS** | CNAME `sygnal.staging.pangea.chat` → `matrix.staging.pangea.chat` (Terraform: `staging/dns/sygnal`) |
 | **ECR repo** | Terraform: `staging/ecr/sygnal` |

@@ -4,11 +4,11 @@ applyTo: "**/.github/workflows/**,**/deploy*,**/docker/**"
 
 # Sygnal Deployment
 
-How the Sygnal push gateway is built and deployed. For org-wide deployment patterns, see [deployment.instructions.md](../../.github/.github/instructions/deployment.instructions.md).
+How the Sygnal push gateway is built and deployed. For org-wide deployment patterns, see [deployment.instructions.md](../../../.github/.github/instructions/deployment.instructions.md).
 
 ## Architecture
 
-Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by the [Ansible playbook](../../ansible/). It is **not** deployed via ECS/Fargate like the choreographer and CMS.
+Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by the [Ansible playbook](../../../ansible/). It is **not** deployed via ECS/Fargate like the choreographer and CMS.
 
 ### Staging
 
@@ -18,7 +18,7 @@ Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by t
 | **CI/CD** | `.github/workflows/deploy-staging.yml` — push to `main` → ECR build → SSM deploy |
 | **IAM (push)** | `github-deploy-staging` OIDC role — ECR push + SSM RunCommand |
 | **IAM (pull)** | `CloudWatchAgentServerRole` — `ecr-pull` inline policy (Terraform: `staging/iam/ec2-ecr-pull`) |
-| **Ansible vars** | [`ansible/inventory/staging/host_vars/matrix.staging.pangea.chat/vars.yml`](../../ansible/inventory/staging/host_vars/matrix.staging.pangea.chat/vars.yml) |
+| **Ansible vars** | [`ansible/inventory/staging/host_vars/matrix.staging.pangea.chat/vars.yml`](../../../ansible/inventory/staging/host_vars/matrix.staging.pangea.chat/vars.yml) |
 | **EC2 instance** | `i-028b5c19a329c8961` (`100.55.34.39`) |
 | **Reverse proxy** | Traefik v3 — routes `sygnal.staging.pangea.chat` → container port 6000, Let's Encrypt TLS |
 | **DNS** | CNAME `sygnal.staging.pangea.chat` → `matrix.staging.pangea.chat` (Terraform: `staging/dns/sygnal`) |
@@ -33,7 +33,7 @@ Sygnal runs as a **Docker container on the Synapse EC2 instances**, managed by t
 | **CI/CD** | `.github/workflows/deploy-production.yml` — GitHub release published → ECR build → SSM deploy → Matrix notification |
 | **IAM (push)** | `github-deploy-prod` OIDC role — ECR push + SSM RunCommand |
 | **IAM (pull)** | `CloudWatchAgentServerRole` — `ecr-pull-prod` inline policy (Terraform: `prod/iam/ec2-ecr-pull`) |
-| **Ansible vars** | [`ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml`](../../ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml) |
+| **Ansible vars** | [`ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml`](../../../ansible/inventory/production/host_vars/matrix.pangea.chat/vars.yml) |
 | **EC2 instance** | `i-074c64998e68a5bc6` (`52.203.29.202`) |
 | **Reverse proxy** | Traefik — routes `sygnal.pangea.chat` → container port 6000 |
 | **DNS** | CNAME `sygnal.pangea.chat` → `matrix.pangea.chat` (Terraform: `prod/dns/sygnal`) |
@@ -61,7 +61,7 @@ Publishing a GitHub release triggers the deploy workflow:
    - Health check via `systemctl is-active`
 3. **Notify** — Posts release summary to the team Matrix room (inlined steps — cannot use reusable workflow from private `.github` repo since sygnal is public)
 
-To deploy: create a GitHub release using the [release template](../../.github/RELEASE_TEMPLATE.md). `workflow_dispatch` is also available for manual re-deploys.
+To deploy: create a GitHub release using the [release template](../../../.github/RELEASE_TEMPLATE.md). `workflow_dispatch` is also available for manual re-deploys.
 
 ### Bootstrap (First-Time Setup)
 
@@ -97,7 +97,7 @@ Managed in `devops/terraform/{staging,prod}/`:
 
 ## Client Integration
 
-The client sets the push gateway URL in [`client/lib/config/setting_keys.dart`](../../client/lib/config/setting_keys.dart):
+The client sets the push gateway URL in [`client/lib/config/setting_keys.dart`](../../../client/lib/config/setting_keys.dart):
 
 ```dart
 pushNotificationsGatewayUrl: 'https://sygnal.pangea.chat/_matrix/push/v1/notify'

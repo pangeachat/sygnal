@@ -33,6 +33,11 @@ DEVICE_EXAMPLE2_APIV1 = {
     "pushkey": "spqr2",
     "pushkey_ts": 42,
 }
+DEVICE_EXAMPLE_APIV1_DATA_ONLY = {
+    "app_id": "com.example.gcm.apiv1.data_only",
+    "pushkey": "spqr",
+    "pushkey_ts": 42,
+}
 DEVICE_EXAMPLE_WITH_DEFAULT_PAYLOAD = {
     "app_id": "com.example.gcm",
     "pushkey": "spqr",
@@ -173,6 +178,31 @@ class GcmTestCase(testutils.TestCase):
         self.service_account_file.flush()
         config["apps"]["com.example.gcm.apiv1"] = {
             "type": "tests.test_gcm.TestGcmPushkin",
+            "api_version": "v1",
+            "project_id": "example_project",
+            "service_account_file": self.service_account_file.name,
+            "fcm_options": {
+                "android": {
+                    "notification": {
+                        "body": {
+                            "test body",
+                        },
+                    },
+                },
+                "apns": {
+                    "payload": {
+                        "aps": {
+                            "content-available": 1,
+                            "mutable-content": 1,
+                            "alert": "",
+                        },
+                    },
+                },
+            },
+        }
+        config["apps"]["com.example.gcm.apiv1.data_only"] = {
+            "type": "tests.test_gcm.TestGcmPushkin",
+            "notification_content": False,
             "api_version": "v1",
             "project_id": "example_project",
             "service_account_file": self.service_account_file.name,
@@ -349,6 +379,39 @@ class GcmTestCase(testutils.TestCase):
         self.assertEqual(
             notification_req[3].get("Authorization"), ["Bearer myaccesstoken"]
         )
+
+    def test_api_v1_omits_notification_content_when_disabled(self) -> None:
+        """
+        An app configured with `notification_content: False` gets a data-only
+        message. A `notification` block would make the Android FCM SDK render
+        the message itself and skip onMessageReceived, so the client would never
+        get to build its own notification.
+        """
+        self.apns_pushkin_snotif = MagicMock()
+        gcm = self.get_test_pushkin("com.example.gcm.apiv1.data_only")
+
+        # type safety: using ignore here due to mypy not handling monkeypatching,
+        # see https://github.com/python/mypy/issues/2427
+        gcm._request_dispatch = self.apns_pushkin_snotif  # type: ignore[assignment] # noqa: E501
+
+        method = self.apns_pushkin_snotif
+        method.side_effect = testutils.make_async_magic_mock(([], []))
+
+        resp = self._request(
+            self._make_dummy_notification([DEVICE_EXAMPLE_APIV1_DATA_ONLY])
+        )
+
+        self.assertEqual(1, method.call_count)
+        body = method.call_args.args[2]
+
+        self.assertNotIn("notification", body["message"])
+        # The data payload is still fully populated -- this is what the client
+        # builds its notification from.
+        self.assertEqual(
+            "!slw48wfj34rtnrf:example.com", body["message"]["data"]["room_id"]
+        )
+        self.assertEqual("Mission Control", body["message"]["data"]["room_name"])
+        self.assertEqual(resp, {"rejected": []})
 
     def test_expected_with_default_payload(self) -> None:
         """

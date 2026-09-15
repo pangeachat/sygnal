@@ -1,0 +1,1 @@
+Add a per-app `notification_content` option (default true). Setting it to false sends a data-only FCM message, which a client needs in order to build its own notification — on Android a `notification` block makes the FCM SDK render the message and skip `onMessageReceived`.

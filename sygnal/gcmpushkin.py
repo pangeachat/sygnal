@@ -127,6 +127,7 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
         "project_id",
         "service_account_file",
         "send_badge_counts",
+        "notification_content",
     } | ConcurrencyLimitedPushkin.UNDERSTOOD_CONFIG_FIELDS
 
     def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]) -> None:
@@ -203,6 +204,15 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 raise PushkinSetupException(
                     f"`service_account_file` must be valid: {str(e)}",
                 )
+
+        # Visible notification content is what makes iOS deliver these reliably
+        # (see _build_notification_message). An app whose client builds its own
+        # notification from the data payload must NOT receive it: on Android a
+        # `notification` block makes the FCM SDK render the message itself and
+        # skip onMessageReceived entirely, so the client never gets to draw it.
+        self.send_notification_content = self.get_config(
+            "notification_content", bool, True
+        )
 
         # Use the fcm_options config dictionary as a foundation for the body;
         # this lets the Sygnal admin choose custom FCM options
@@ -582,9 +592,10 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 # Add notification content to the request body
                 # Data-only messages don't go through consistently on iOS
                 # https://github.com/matrix-org/sygnal/issues/366
-                notification_message = GcmPushkin._build_notification_message(n)
-                if notification_message is not None:
-                    body["message"]["notification"] = notification_message
+                if self.send_notification_content:
+                    notification_message = GcmPushkin._build_notification_message(n)
+                    if notification_message is not None:
+                        body["message"]["notification"] = notification_message
 
             for retry_number in range(0, MAX_TRIES):
                 # This has to happen inside the retry loop since `pushkeys` can be modified in the

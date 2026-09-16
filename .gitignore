@@ -1,5 +1,9 @@
 *.pyc
 sygnal.yaml
+# Firebase Admin SDK service-account keys. These are live credentials that
+# grant FCM send access for a whole project; they are mounted at runtime by
+# Ansible and must never be committed.
+*firebase-adminsdk*.json
 var/
 sygnal.pid
 sygnal.db

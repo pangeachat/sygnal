@@ -1,0 +1,1 @@
+Add per-app `only_event_types` and `skip_event_types` options. An app limited by them is neither sent nor rejected for the notifications it does not take, so an iOS VoIP app ID can be sent call rings alone and an ordinary app ID can skip them.

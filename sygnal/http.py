@@ -55,6 +55,12 @@ NOTIFS_BY_PUSHKIN = Counter(
     labelnames=["pushkin"],
 )
 
+NOTIFS_SKIPPED_BY_PUSHKIN = Counter(
+    "sygnal_notifications_skipped_by_pushkin",
+    "Number of pushes an app's only_event_types or skip_event_types kept from it",
+    labelnames=["pushkin"],
+)
+
 PUSHGATEWAY_HTTP_RESPONSES_COUNTER = Counter(
     "sygnal_pushgateway_status_codes",
     "HTTP Response Codes given on the Push Gateway API",
@@ -260,6 +266,15 @@ class V1NotifyHandler(Resource):
                     continue
 
                 pushkin = found_pushkins[0]
+                if not pushkin.accepts(notif):
+                    log.debug(
+                        "App ID %s is not sent %s notifications; skipping",
+                        appid,
+                        notif.type,
+                    )
+                    NOTIFS_SKIPPED_BY_PUSHKIN.labels(pushkin.name).inc()
+                    continue
+
                 log.debug(
                     "Sending push to pushkin %s for app ID %s", pushkin.name, appid
                 )

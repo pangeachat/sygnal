@@ -9,7 +9,17 @@
 # Originally licensed under the Apache License, Version 2.0:
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import abc
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    FrozenSet,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    overload,
+)
 
 from matrix_common.regex import glob_to_regex
 from opentracing import Span
@@ -103,11 +113,47 @@ class Notification:
 
 
 class Pushkin(abc.ABC):
+    # Fields every pushkin understands, whatever its type.
+    UNDERSTOOD_CONFIG_FIELDS = {"only_event_types", "skip_event_types"}
+
     def __init__(self, name: str, sygnal: "Sygnal", config: Dict[str, Any]):
         self.name = name
         self.appid_pattern = glob_to_regex(name, ignore_case=False)
         self.cfg = config
         self.sygnal = sygnal
+        self.only_event_types = self._event_types("only_event_types")
+        self.skip_event_types = self._event_types("skip_event_types")
+
+    def _event_types(self, key: str) -> Optional[FrozenSet[str]]:
+        types = self.get_config(key, list)
+        if types is None:
+            return None
+        if not all(isinstance(t, str) for t in types):
+            raise PushkinSetupException(f"{key} must be a list of event types.")
+        return frozenset(types)
+
+    def accepts(self, n: Notification) -> bool:
+        """
+        Whether this app is sent notification `n` at all.
+
+        `only_event_types` limits an app to the listed event types, so a
+        notification with no event type, such as a badge update, is not sent
+        to it. `skip_event_types` keeps the listed types from it.
+
+        An iOS app that registers for VoIP pushes needs both: Apple stops
+        waking an app that does not show a call for every VoIP push, so its
+        VoIP app ID may be sent call rings and nothing else, and the app ID it
+        uses for ordinary notifications must skip rings or each ring arrives
+        twice.
+
+        A notification an app does not accept is neither sent nor rejected:
+        the pushkey stays valid for the notifications it does accept.
+        """
+        if self.only_event_types is not None and n.type not in self.only_event_types:
+            return False
+        if self.skip_event_types is not None and n.type in self.skip_event_types:
+            return False
+        return True
 
     @overload
     def get_config(self, key: str, type_: Type[T], default: T) -> T: ...
@@ -171,7 +217,9 @@ class ConcurrencyLimitedPushkin(Pushkin):
     # We start turning away requests after this limit is reached.
     DEFAULT_CONCURRENCY_LIMIT = 512
 
-    UNDERSTOOD_CONFIG_FIELDS = {"inflight_request_limit"}
+    UNDERSTOOD_CONFIG_FIELDS = {
+        "inflight_request_limit"
+    } | Pushkin.UNDERSTOOD_CONFIG_FIELDS
 
     RATELIMITING_DROPPED_REQUESTS = Counter(
         "sygnal_inflight_request_limit_drop",

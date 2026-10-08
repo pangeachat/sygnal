@@ -14,6 +14,7 @@ from twisted.internet.testing import StringTransport
 
 from sygnal.exceptions import (
     NotificationDispatchException,
+    PushkinSetupException,
     TemporaryNotificationDispatchException,
 )
 from sygnal.notifications import Device, Notification, NotificationContext, Pushkin
@@ -72,6 +73,13 @@ class TestPushkin(Pushkin):
         raise Exception(f"Unexpected fall-through. {device.pushkey}")
 
 
+RING = "org.matrix.msc4075.rtc.notification"
+
+
+def _on(app_id: str, pushkey: str) -> Dict[str, Any]:
+    return {"app_id": app_id, "pushkey": pushkey, "pushkey_ts": 1234}
+
+
 class PushGatewayApiV1TestCase(testutils.TestCase):
     def config_setup(self, config: Dict[str, Any]) -> None:
         """
@@ -81,6 +89,83 @@ class PushGatewayApiV1TestCase(testutils.TestCase):
         config["apps"]["com.example.spqr"] = {
             "type": "tests.test_pushgateway_api_v1.TestPushkin"
         }
+        # An iOS app's VoIP pushes, which may carry only call rings.
+        config["apps"]["com.example.spqr.voip"] = {
+            "type": "tests.test_pushgateway_api_v1.TestPushkin",
+            "only_event_types": [RING],
+        }
+        # The same app's ordinary notifications, which leave rings to VoIP.
+        config["apps"]["com.example.spqr.ios"] = {
+            "type": "tests.test_pushgateway_api_v1.TestPushkin",
+            "skip_event_types": [RING],
+        }
+
+    def _ring(self, devices: List[Dict[str, Any]]) -> Dict[str, Any]:
+        notification = self._make_dummy_notification(devices)
+        notification["notification"]["type"] = RING
+        return notification
+
+    # In these tests a pushkey of "reject" proves a push was sent -- the test
+    # pushkin rejects it -- and "raise_exception" proves one was not, since
+    # sending it fails the whole request.
+
+    def test_only_event_types_sends_listed_types(self) -> None:
+        self.assertEqual(
+            self._request(self._ring([_on("com.example.spqr.voip", "reject")])),
+            {"rejected": ["reject"]},
+        )
+
+    def test_only_event_types_skips_other_types(self) -> None:
+        self.assertEqual(
+            self._request(
+                self._make_dummy_notification(
+                    [_on("com.example.spqr.voip", "raise_exception")]
+                )
+            ),
+            {"rejected": []},
+        )
+
+    def test_only_event_types_skips_badge_updates(self) -> None:
+        self.assertEqual(
+            self._request(
+                self._make_dummy_notification_badge_only(
+                    [_on("com.example.spqr.voip", "raise_exception")]
+                )
+            ),
+            {"rejected": []},
+        )
+
+    def test_skip_event_types_skips_listed_types(self) -> None:
+        self.assertEqual(
+            self._request(self._ring([_on("com.example.spqr.ios", "raise_exception")])),
+            {"rejected": []},
+        )
+
+    def test_skip_event_types_sends_other_types(self) -> None:
+        self.assertEqual(
+            self._request(
+                self._make_dummy_notification([_on("com.example.spqr.ios", "reject")])
+            ),
+            {"rejected": ["reject"]},
+        )
+
+    def test_one_ring_reaches_only_the_app_ids_that_take_it(self) -> None:
+        self.assertEqual(
+            self._request(
+                self._ring(
+                    [
+                        _on("com.example.spqr.voip", "reject"),
+                        _on("com.example.spqr.ios", "raise_exception"),
+                    ]
+                )
+            ),
+            {"rejected": ["reject"]},
+        )
+
+    def test_event_types_must_be_a_list_of_strings(self) -> None:
+        for bad in ("org.matrix.msc4075.rtc.notification", [1]):
+            with self.assertRaises(PushkinSetupException):
+                TestPushkin("bad", self.sygnal, {"only_event_types": bad})
 
     def test_good_requests_give_200(self) -> None:
         """

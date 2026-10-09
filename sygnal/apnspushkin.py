@@ -204,6 +204,18 @@ class ApnsPushkin(ConcurrencyLimitedPushkin):
 
             self.push_type = self.APNS_PUSH_TYPES[push_type]
 
+        # Apple stops waking an app that does not show a call for every VoIP
+        # push it is sent, so a VoIP app has to say which events it takes. One
+        # that does not -- the option left out or misspelled -- is sent nothing
+        # rather than everything, and the error says why.
+        if self.push_type == PushType.VOIP and self.only_event_types is None:
+            logger.error(
+                "App %s sends VoIP pushes but sets no only_event_types; "
+                "it will be sent nothing until it does",
+                name,
+            )
+            self.only_event_types = frozenset()
+
         # without this, aioapns will retry every second forever.
         self.apns_client.pool.max_connection_attempts = 3
 

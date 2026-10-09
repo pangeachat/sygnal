@@ -160,6 +160,18 @@ metrics:
 # Specify the pushkey for the application and also the type.
 # For the type, you may specify a fully-qualified Python classname if desired.
 #
+# Any app may also be limited by event type. `only_event_types` sends the app
+# the listed types and nothing else, so it is sent no badge-only updates;
+# `skip_event_types` sends it everything but the listed types. A notification
+# an app is not sent is not rejected either, so its pushkey stays valid. Both
+# need the event type, which a pusher registered with the `event_id_only`
+# format does not send. An APNs app with `push_type: voip` must set
+# `only_event_types`, or it is sent nothing: Apple stops waking an app that
+# does not show a call for every VoIP push.
+#
+#   only_event_types: ["org.matrix.msc4075.rtc.notification"]
+#   skip_event_types: ["org.matrix.msc4075.rtc.notification"]
+#
 apps:
   # This is an example APNs push configuration
   #

@@ -181,9 +181,18 @@ iOS is capable of displaying an on-screen call notification (with answer/deny bu
 and playing a ringtone.
 
 However, this requires sending a special kind of push notification.
-Sygnal is not able to send this type of push notification because a VoIP call may
-begin as a result of an encrypted message, so Sygnal has no way to know that a given
-message should initiate a VoIP call.
+In general Sygnal cannot send it, because a VoIP call may begin as a result of an
+encrypted message, so Sygnal has no way to know that a given message should initiate
+a VoIP call.
+
+When calls ring through an unencrypted event of their own type, Sygnal can: give an
+APNs app `push_type: voip` and list that type in `only_event_types`, and Sygnal sends
+the app those events and nothing else. Apple stops waking an app that does not show a
+call for every VoIP push, so a VoIP app that sets no `only_event_types` is sent
+nothing. Give the app ID the same client uses for its ordinary notifications
+`skip_event_types` with the same type, or each call also arrives as an ordinary
+notification. Neither option works for a pusher registered with the `event_id_only`
+format, which sends no event type.
 
 
 ##### Recent iOS (≥ 14.5) versions

@@ -12,12 +12,15 @@ from typing import Any, Dict, List
 from twisted.internet.address import IPv6Address
 from twisted.internet.testing import StringTransport
 
+from sygnal.apnspushkin import ApnsPushkin
 from sygnal.exceptions import (
     NotificationDispatchException,
     PushkinSetupException,
     TemporaryNotificationDispatchException,
 )
+from sygnal.gcmpushkin import GcmPushkin
 from sygnal.notifications import Device, Notification, NotificationContext, Pushkin
+from sygnal.webpushpushkin import WebpushPushkin
 
 from tests import testutils
 
@@ -166,6 +169,22 @@ class PushGatewayApiV1TestCase(testutils.TestCase):
         for bad in ("org.matrix.msc4075.rtc.notification", [1]):
             with self.assertRaises(PushkinSetupException):
                 TestPushkin("bad", self.sygnal, {"only_event_types": bad})
+
+    def test_event_types_must_not_be_empty(self) -> None:
+        for key in ("only_event_types", "skip_event_types"):
+            with self.assertRaises(PushkinSetupException):
+                TestPushkin("bad", self.sygnal, {key: []})
+
+    # Each pushkin type warns about fields it does not understand and then
+    # ignores them. Ignoring `only_event_types` on a VoIP app would send it
+    # every notification.
+    def test_every_pushkin_type_understands_the_options(self) -> None:
+        for pushkin in (ApnsPushkin, GcmPushkin, WebpushPushkin):
+            self.assertLessEqual(
+                {"only_event_types", "skip_event_types"},
+                set(pushkin.UNDERSTOOD_CONFIG_FIELDS),
+                pushkin.__name__,
+            )
 
     def test_good_requests_give_200(self) -> None:
         """

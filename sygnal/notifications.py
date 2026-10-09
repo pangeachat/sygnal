@@ -130,6 +130,10 @@ class Pushkin(abc.ABC):
             return None
         if not all(isinstance(t, str) for t in types):
             raise PushkinSetupException(f"{key} must be a list of event types.")
+        # An empty `only_event_types` would send the app nothing at all, and an
+        # empty `skip_event_types` does nothing: either is a mistake.
+        if not types:
+            raise PushkinSetupException(f"{key} must name at least one event type.")
         return frozenset(types)
 
     def accepts(self, n: Notification) -> bool:
@@ -148,6 +152,11 @@ class Pushkin(abc.ABC):
 
         A notification an app does not accept is neither sent nor rejected:
         the pushkey stays valid for the notifications it does accept.
+
+        Both match the event type alone. A pusher registered with the
+        `event_id_only` format is sent no event type, so it is sent nothing
+        under `only_event_types` and everything under `skip_event_types`. Two
+        kinds of event that share a type cannot be told apart here either.
         """
         if self.only_event_types is not None and n.type not in self.only_event_types:
             return False

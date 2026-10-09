@@ -14,12 +14,16 @@ from aioapns.common import NotificationResult, PushType
 
 from sygnal import apnstruncate
 from sygnal.apnspushkin import ApnsPushkin
+from sygnal.notifications import Notification
 
 from tests import testutils
 
 PUSHKIN_ID = "com.example.apns"
 PUSHKIN_ID_WITHOUT_BADGES = "com.example.apns.disable_badges"
 PUSHKIN_ID_WITH_PUSH_TYPE = "com.example.apns.push_type"
+PUSHKIN_ID_VOIP = "com.example.apns.voip"
+PUSHKIN_ID_VOIP_UNFILTERED = "com.example.apns.voip_unfiltered"
+RING = "org.matrix.msc4075.rtc.notification"
 
 TEST_CERTFILE_PATH = "/path/to/my/certfile.pem"
 
@@ -98,6 +102,36 @@ class ApnsTestCase(testutils.TestCase):
             "certfile": TEST_CERTFILE_PATH,
             "push_type": "alert",
         }
+        config["apps"][PUSHKIN_ID_VOIP] = {
+            "type": "apns",
+            "certfile": TEST_CERTFILE_PATH,
+            "push_type": "voip",
+            "only_event_types": [RING],
+        }
+        # The option left out, as a misspelling would leave it.
+        config["apps"][PUSHKIN_ID_VOIP_UNFILTERED] = {
+            "type": "apns",
+            "certfile": TEST_CERTFILE_PATH,
+            "push_type": "voip",
+            "only_event_typse": [RING],
+        }
+
+    def _notification_of_type(self, event_type: Any) -> Notification:
+        notification = self._make_dummy_notification([DEVICE_EXAMPLE])
+        notification["notification"]["type"] = event_type
+        return Notification(notification["notification"])
+
+    def test_voip_app_is_sent_its_listed_types(self) -> None:
+        voip = self.get_test_pushkin(PUSHKIN_ID_VOIP)
+        self.assertTrue(voip.accepts(self._notification_of_type(RING)))
+        self.assertFalse(voip.accepts(self._notification_of_type("m.room.message")))
+
+    # Apple stops waking an app that does not show a call for every VoIP push,
+    # so a VoIP app that does not say what it takes is sent nothing at all.
+    def test_voip_app_without_only_event_types_is_sent_nothing(self) -> None:
+        voip = self.get_test_pushkin(PUSHKIN_ID_VOIP_UNFILTERED)
+        for event_type in (RING, "m.room.message", None):
+            self.assertFalse(voip.accepts(self._notification_of_type(event_type)))
 
     def test_payload_truncation(self) -> None:
         """

@@ -9,6 +9,11 @@ permissions:
   contents: read
   id-token: write # Required for OIDC
 
+# One deploy at a time, so two runs can't race on the image push or leave an older SHA running.
+concurrency:
+  group: sygnal-deploy-production
+  cancel-in-progress: false
+
 env:
   ECR_REGISTRY: 061565848348.dkr.ecr.us-east-1.amazonaws.com
   ECR_REPOSITORY: pangea-prod-sygnal
@@ -20,8 +25,6 @@ jobs:
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    outputs:
-      image-tag: ${{ steps.build-image.outputs.image-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -36,11 +39,28 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
 
+      # ECR tags are immutable (devops#285): an image for this commit is reused, never rebuilt,
+      # so re-running a deploy (or redeploying an older commit to roll back) ships the same image.
+      - name: Check whether this commit's image is already in ECR
+        id: existing
+        run: |
+          COUNT=$(aws ecr batch-get-image \
+            --repository-name "${{ env.ECR_REPOSITORY }}" \
+            --image-ids imageTag="${{ github.sha }}" \
+            --query 'length(images)' --output text)
+          if [[ "$COUNT" == "0" ]]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Image :${{ github.sha }} already in ECR; reusing it."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Docker Buildx
+        if: steps.existing.outputs.exists != 'true'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build and push
-        id: build-image
+        if: steps.existing.outputs.exists != 'true'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -48,13 +68,9 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:production
             ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=min
-
-      - name: Output image tag
-        run: echo "image-tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
 
   deploy:
     name: Deploy to Production EC2
@@ -70,12 +86,15 @@ jobs:
       - name: Deploy via SSM
         id: ssm-command
         run: |
-          IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:production"
+          # The systemd unit (rendered by Ansible) runs the host-local tag; moving it to this
+          # commit's image is the deploy.
+          IMAGE="${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
+          LOCAL_IMAGE="localhost/pangea-sygnal:current"
           COMMAND_ID=$(aws ssm send-command \
             --instance-ids "${{ env.INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
             --parameters "commands=[
-              \"bash -c 'set -euo pipefail && echo Pulling ${IMAGE} && docker pull ${IMAGE} && echo Restarting matrix-sygnal && systemctl restart matrix-sygnal && sleep 5 && systemctl is-active matrix-sygnal && echo Deploy complete'\"
+              \"bash -c 'set -euo pipefail && echo Pulling ${IMAGE} && docker pull ${IMAGE} && docker tag ${IMAGE} ${LOCAL_IMAGE} && echo Restarting matrix-sygnal && systemctl restart matrix-sygnal && sleep 5 && systemctl is-active matrix-sygnal && echo Deploy complete'\"
             ]" \
             --timeout-seconds 300 \
             --comment "Sygnal production deploy from ${{ github.sha }}" \

@@ -12,6 +12,9 @@ permissions:
 
 jobs:
   build:
+    # Pangea: publishes Element's matrixdotorg/sygnal image, so it only runs upstream. Our
+    # deploys go through deploy-staging.yml and deploy-production.yml.
+    if: github.repository == 'element-hq/sygnal'
     runs-on: ubuntu-latest
     steps:
       - name: Set up QEMU

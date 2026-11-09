@@ -113,6 +113,31 @@ class APIVersion(Enum):
     V1 = "v1"
 
 
+# FCM v1 error details that say the token itself can never receive a push
+# from this project: a token registered with another Firebase project, or an
+# APNs device token Apple refuses. Anything else in a 400 or 403 is still our
+# request or our credentials, and is not the token's fault.
+_DEAD_TOKEN_FCM_ERRORS = frozenset({"SENDER_ID_MISMATCH"})
+_DEAD_TOKEN_APNS_REASONS = frozenset({"BadDeviceToken"})
+
+
+def _v1_token_is_dead(response_text: str) -> bool:
+    try:
+        details = json.loads(response_text)["error"]["details"]
+    except (ValueError, KeyError, TypeError):
+        return False
+    if not isinstance(details, list):
+        return False
+    for detail in details:
+        if not isinstance(detail, dict):
+            continue
+        if detail.get("errorCode") in _DEAD_TOKEN_FCM_ERRORS:
+            return True
+        if detail.get("reason") in _DEAD_TOKEN_APNS_REASONS:
+            return True
+    return False
+
+
 class GcmPushkin(ConcurrencyLimitedPushkin):
     """
     Pushkin that relays notifications to Google/Firebase Cloud Messaging.
@@ -449,6 +474,11 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
                 "GCM server error, hopefully temporary.", custom_retry_delay=retry_after
             )
         elif response.code == 400:
+            if _v1_token_is_dead(response_text):
+                # The request was fine; the token is not. Reject it so the
+                # homeserver drops the pusher instead of failing on every push.
+                log.info("400 BadDeviceToken; rejecting pushkeys")
+                return pushkeys, []
             log.error(
                 "%d from server, we have sent something invalid! Error: %r",
                 response.code,
@@ -463,6 +493,12 @@ class GcmPushkin(ConcurrencyLimitedPushkin):
             # permanent failure: give up
             raise NotificationDispatchException("Not authorised to push")
         elif response.code == 403:
+            if _v1_token_is_dead(response_text):
+                # The token was registered with another Firebase project, so
+                # no push to it from this project can ever succeed. Reject it
+                # like an unregistered token (404 below).
+                log.info("403 SENDER_ID_MISMATCH; rejecting pushkeys")
+                return pushkeys, []
             log.error("403 from server! Sender ID mismatch! Error: %r", response_text)
             # permanent failure: give up
             raise NotificationDispatchException("Sender ID mismatch")

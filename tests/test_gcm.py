@@ -9,6 +9,7 @@
 # <http://www.apache.org/licenses/LICENSE-2.0>.
 import json
 import tempfile
+import unittest
 from typing import TYPE_CHECKING, Any, AnyStr, Dict, List, Tuple
 from unittest.mock import MagicMock
 
@@ -968,3 +969,64 @@ ooooooooooxxxxxxxxxxooooooooooxxxxxxxxxxoooooooooox…",
         self.assertEqual(
             notification_req[3].get("Authorization"), ["Bearer myaccesstoken"]
         )
+
+
+class V1DeadTokenTestCase(unittest.TestCase):
+    """A token FCM says can never receive a push from this project is rejected
+    so the homeserver drops its pusher; other 400s and 403s still fail."""
+
+    def _handle(self, code: int, body: Dict[str, Any]) -> Any:
+        from sygnal.gcmpushkin import GcmPushkin
+
+        response = MagicMock()
+        response.code = code
+        return GcmPushkin._handle_v1_response(
+            MagicMock(),  # self: the method reads no state
+            MagicMock(),
+            response,
+            json.dumps(body),
+            ["spqr"],
+            MagicMock(),
+        )
+
+    def test_sender_id_mismatch_rejects_the_pushkey(self) -> None:
+        body = {
+            "error": {
+                "code": 403,
+                "status": "PERMISSION_DENIED",
+                "details": [
+                    {
+                        "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+                        "errorCode": "SENDER_ID_MISMATCH",
+                    }
+                ],
+            }
+        }
+        self.assertEqual(self._handle(403, body), (["spqr"], []))
+
+    def test_bad_apns_device_token_rejects_the_pushkey(self) -> None:
+        body = {
+            "error": {
+                "code": 400,
+                "status": "INVALID_ARGUMENT",
+                "details": [
+                    {
+                        "@type": "type.googleapis.com/google.firebase.fcm.v1.ApnsError",
+                        "statusCode": 400,
+                        "reason": "BadDeviceToken",
+                    }
+                ],
+            }
+        }
+        self.assertEqual(self._handle(400, body), (["spqr"], []))
+
+    def test_other_400_and_403_still_fail(self) -> None:
+        from sygnal.exceptions import NotificationDispatchException
+
+        other = {"error": {"code": 400, "status": "INVALID_ARGUMENT", "details": []}}
+        with self.assertRaises(NotificationDispatchException):
+            self._handle(400, other)
+        with self.assertRaises(NotificationDispatchException):
+            self._handle(403, {"error": {"code": 403, "details": []}})
+        with self.assertRaises(NotificationDispatchException):
+            self._handle(403, {"not": "json from fcm"})

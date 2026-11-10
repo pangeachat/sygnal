@@ -1,0 +1,1 @@
+Reject a pushkey when FCM reports that its token can never receive a push from this project (`SENDER_ID_MISMATCH`, or an APNs `BadDeviceToken`), so the homeserver removes the pusher instead of failing on every notification. Contributed by Pangea Chat.
